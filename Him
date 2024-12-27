@@ -1,0 +1,50 @@
+-- Tạo ScreenGui để hiển thị menu
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+
+-- Tạo Frame cho menu
+local menuFrame = Instance.new("Frame")
+menuFrame.Size = UDim2.new(0, 400, 0, 300)
+menuFrame.Position = UDim2.new(0.5, -200, 0.5, -150)
+menuFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+menuFrame.Parent = screenGui
+
+-- Tạo tiêu đề cho menu
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 0, 50)
+titleLabel.Position = UDim2.new(0, 0, 0, 0)
+titleLabel.Text = "Game Menu"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Parent = menuFrame
+
+-- Tạo nút "Start Game"
+local startButton = Instance.new("TextButton")
+startButton.Size = UDim2.new(0, 200, 0, 50)
+startButton.Position = UDim2.new(0.5, -100, 0.4, 0)
+startButton.Text = "Start Game"
+startButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+startButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+startButton.Parent = menuFrame
+
+-- Sự kiện khi nhấn vào nút "Start Game"
+startButton.MouseButton1Click:Connect(function()
+    -- Chức năng khi bắt đầu game (ví dụ: bắt đầu nhiệm vụ hoặc dịch chuyển người chơi)
+    print("Game started!")
+    screenGui:Destroy()  -- Xóa menu sau khi bắt đầu trò chơi
+end)
+
+-- Tạo nút "Settings"
+local settingsButton = Instance.new("TextButton")
+settingsButton.Size = UDim2.new(0, 200, 0, 50)
+settingsButton.Position = UDim2.new(0.5, -100, 0.6, 0)
+settingsButton.Text = "Settings"
+settingsButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+settingsButton.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
+settingsButton.Parent = menuFrame
+
+-- Sự kiện khi nhấn vào nút "Settings"
+settingsButton.MouseButton1Click:Connect(function()
+    -- Chức năng mở cài đặt (ví dụ: điều chỉnh âm lượng, chất lượng đồ họa, v.v.)
+    print("Settings opened!")
+end)
