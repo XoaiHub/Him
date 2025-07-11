@@ -197,17 +197,23 @@ end
 ------------------------------------------------
 -- PHẦN THÊM: Teleport Zone + Tạo Party
 ------------------------------------------------
--- Lấy HRP
+-- Lấy player an toàn
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+-- Đợi đảm bảo Character và HRP tồn tại
 local function getCharacter()
-    local char = player.Character or player.CharacterAdded:Wait()
-    return char:WaitForChild("HumanoidRootPart")
+    repeat task.wait() until player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    return player.Character.HumanoidRootPart
 end
 
--- Lấy Hitbox
+-- Lấy Hitbox từ zone
 local function getHitbox()
     local zoneName = getgenv().TeleportZoneName or "PartyZone2"
-    local hitbox = workspace:WaitForChild("PartyZones", 10):WaitForChild(zoneName, 10):WaitForChild("Hitbox", 10)
-    return hitbox
+    local success, zone = pcall(function()
+        return workspace:WaitForChild("PartyZones", 10):WaitForChild(zoneName, 10):WaitForChild("Hitbox", 10)
+    end)
+    if success then return zone else return nil end
 end
 
 -- Hàm tạo party
@@ -224,25 +230,30 @@ local function createParty(mode)
         :WaitForChild("RemoteEvent"):WaitForChild("CreateParty"):FireServer(unpack(args))
 end
 
--- Teleport
-local success, err = pcall(function()
-    local hrp = getCharacter()
-    local hitbox = getHitbox()
-    if hrp and hitbox then
-        local yOffset = getgenv().YOffset or 5
-        hrp.CFrame = CFrame.new(hitbox.Position + Vector3.new(0, yOffset, 0))
-    else
-        warn("Không tìm thấy HRP hoặc Hitbox")
-    end
-end)
+-- Teleport nếu được bật trong config
+if getgenv().EnableTeleportAndParty then
+    local success, err = pcall(function()
+        local hrp = getCharacter()
+        local hitbox = getHitbox()
+        if hrp and hitbox then
+            local yOffset = getgenv().YOffset or 5
+            hrp.CFrame = CFrame.new(hitbox.Position + Vector3.new(0, yOffset, 0))
+        else
+            warn("Không tìm thấy HRP hoặc Hitbox")
+        end
+    end)
 
-if not success then warn("Teleport bị lỗi:", err) end
-
--- Đợi rồi tạo party
-task.delay(5, function()
-    if getgenv().EnableParty then
-        if getgenv().EnableParty.Normal then createParty("Normal") end
-        if getgenv().EnableParty.ScorchedEarth then createParty("Scorched Earth") end
-        if getgenv().EnableParty.Nightmare then createParty("Nightmare") end
+    if not success then
+        warn("Lỗi teleport:", err)
     end
-end)
+
+    -- Tạo party sau vài giây nếu có config
+    task.delay(5, function()
+        if getgenv().EnableParty then
+            if getgenv().EnableParty.Normal then createParty("Normal") end
+            if getgenv().EnableParty.ScorchedEarth then createParty("Scorched Earth") end
+            if getgenv().EnableParty.Nightmare then createParty("Nightmare") end
+        end
+    end)
+end
+
