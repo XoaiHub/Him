@@ -3,94 +3,69 @@ repeat task.wait() until game:IsLoaded()
 
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
+local zonesFolder = workspace:WaitForChild("PartyZones", 10)
 
--- Lấy HRP
 local function getHRP()
     local char = player.Character or player.CharacterAdded:Wait()
-    return char:WaitForChild("HumanoidRootPart")
+    return char:WaitForChild("HumanoidRootPart", 5)
 end
 
 -- Đếm số người trong Zone
 local function getPlayerCountInZone(zoneName)
-    local zone = workspace:WaitForChild("PartyZones", 10):FindFirstChild(zoneName)
-    if not zone then return 0 end
+    local zone = zonesFolder:FindFirstChild(zoneName)
+    if not zone then return math.huge end
     local hitbox = zone:FindFirstChild("Hitbox")
-    if not hitbox then return 0 end
+    if not hitbox then return math.huge end
 
     local count = 0
     for _, p in pairs(Players:GetPlayers()) do
         local char = p.Character
-        if char and char:FindFirstChild("HumanoidRootPart") then
-            local dist = (char.HumanoidRootPart.Position - hitbox.Position).Magnitude
-            if dist < 15 then
-                count += 1
-            end
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp and (hrp.Position - hitbox.Position).Magnitude <= 10 then
+            count += 1
         end
     end
     return count
 end
 
--- Teleport đến zone
-local function teleportTo(zoneName)
-    local zone = workspace:WaitForChild("PartyZones", 10):FindFirstChild(zoneName)
-    if not zone then return end
+-- Kiểm tra nếu player đã ở đúng Zone
+local function isInZone(zoneName)
+    local zone = zonesFolder:FindFirstChild(zoneName)
+    if not zone then return false end
     local hitbox = zone:FindFirstChild("Hitbox")
-    if not hitbox then return end
+    if not hitbox then return false end
 
     local hrp = getHRP()
-    if hrp then
-        local yOffset = getgenv().YOffset or 5
-        hrp.CFrame = CFrame.new(hitbox.Position + Vector3.new(0, yOffset, 0))
-        print("[Teleported to]:", zoneName)
-    end
+    return (hrp.Position - hitbox.Position).Magnitude <= 10
 end
 
--- Tạo party
-local function createParty(mode)
-    local args = {{
-        isPrivate = true,
-        maxMembers = 1,
-        trainId = "default",
-        gameMode = mode
-    }}
-    game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Network")
-        :WaitForChild("RemoteEvent"):WaitForChild("CreateParty"):FireServer(unpack(args))
-end
+-- Vòng lặp chính
+while true do
+    local currentZone = getgenv().TeleportZoneName
+    local playerInCurrent = getPlayerCountInZone(currentZone)
+    local maxInCurrent = getgenv().TargetPlayersPerZone[currentZone] or 1
 
--- Auto hệ thống
-task.spawn(function()
-    local zoneList = {}
-    for zoneName, _ in pairs(getgenv().TargetPlayersPerZone) do
-        table.insert(zoneList, zoneName)
-    end
-
-    table.sort(zoneList, function(a, b) return a < b end)
-
-    while getgenv().EnableTeleport do
-        for i, zoneName in ipairs(zoneList) do
-            local target = getgenv().TargetPlayersPerZone[zoneName]
-            local current = getPlayerCountInZone(zoneName)
-
-            print(string.format("[%s] %d / %d", zoneName, current, target))
-
-            if current < target then
-                teleportTo(zoneName)
-                break
-            elseif current == target and zoneList[i + 1] then
-                teleportTo(zoneList[i + 1])
-                break
-            end
-        end
-
-        -- Tạo party sau khi Teleport
-        task.delay(3, function()
-            if getgenv().EnableParty then
-                for mode, isEnabled in pairs(getgenv().EnableParty) do
-                    if isEnabled then createParty(mode) end
+    -- Nếu đang ở đúng Zone và chưa đủ người → không làm gì cả
+    if isInZone(currentZone) and playerInCurrent < maxInCurrent then
+        -- Đủ điều kiện rồi, không cần Teleport nữa
+    else
+        -- Tìm zone khác có chỗ trống
+        for zoneName, maxPlayers in pairs(getgenv().TargetPlayersPerZone) do
+            local count = getPlayerCountInZone(zoneName)
+            if count < maxPlayers then
+                local zone = zonesFolder:FindFirstChild(zoneName)
+                if zone then
+                    local hitbox = zone:FindFirstChild("Hitbox")
+                    if hitbox then
+                        local pos = hitbox.Position + Vector3.new(0, getgenv().YOffset or 5, 0)
+                        getHRP().CFrame = CFrame.new(pos)
+                        getgenv().TeleportZoneName = zoneName -- cập nhật zone hiện tại
+                        break
+                    end
                 end
             end
-        end)
-
-        task.wait(getgenv().TeleportInterval or 5)
+        end
     end
-end)
+
+    task.wait(getgenv().TeleportInterval or 5)
+end
