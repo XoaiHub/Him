@@ -1,258 +1,90 @@
--- Xóa UI cũ nếu có
-if game.CoreGui:FindFirstChild("NexonUI") then
-    game.CoreGui.NexonUI:Destroy()
-end
+if not getgenv().EnableTeleport then return end
+repeat task.wait() until game:IsLoaded()
 
--- Tạo GUI chính
-local gui = Instance.new("ScreenGui", game.CoreGui)
-gui.Name = "MochiUi"
-gui.ResetOnSpawn = false
-
--- Frame chính
-local mainFrame = Instance.new("Frame", gui)
-mainFrame.Size = UDim2.new(0, 400, 0, 300)
-mainFrame.Position = UDim2.new(0.5, 0, 0.4, 0)
-mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-mainFrame.BackgroundTransparency = 1
-
--- Tiêu đề
-local title = Instance.new("TextLabel", mainFrame)
-title.Size = UDim2.new(1, 0, 0, 50)
-title.Position = UDim2.new(0.5, 0, 0, 140)
-title.AnchorPoint = Vector2.new(0.5, 0)
-title.BackgroundTransparency = 1
-title.Text = "Mochi Hub"
-title.Font = Enum.Font.GothamBlack
-title.TextSize = 36
-title.TextColor3 = Color3.new(1, 1, 1)
-title.TextStrokeTransparency = 0.6
-title.TextXAlignment = Enum.TextXAlignment.Center
-
--- Tác giả
-local author = Instance.new("TextLabel", mainFrame)
-author.Size = UDim2.new(1, 0, 0, 30)
-author.Position = UDim2.new(0.5, 0, 0, 190)
-author.AnchorPoint = Vector2.new(0.5, 0)
-author.BackgroundTransparency = 1
-author.Text = "Mochi Kaitun"
-author.Font = Enum.Font.Gotham
-author.TextSize = 20
-author.TextColor3 = Color3.new(1, 1, 1)
-author.TextXAlignment = Enum.TextXAlignment.Center
-
--- Bond UI nằm giữa Mochi Kaitun và Discord
-local bondFrame = Instance.new("Frame", mainFrame)
-bondFrame.Name = "BondUI"
-bondFrame.Size = UDim2.new(0, 180, 0, 30)
-bondFrame.Position = UDim2.new(0.5, 0, 0, 227)
-bondFrame.AnchorPoint = Vector2.new(0.5, 0)
-bondFrame.BackgroundTransparency = 1
-bondFrame.BorderSizePixel = 0
-bondFrame.Draggable = false
-bondFrame.Active = true
-
--- Logo
-local logo = Instance.new("ImageLabel", bondFrame)
-logo.Size = UDim2.new(0, 24, 0, 24)
-logo.Position = UDim2.new(0, 0, 0.5, 0)
-logo.AnchorPoint = Vector2.new(0, 0.5)
-logo.BackgroundTransparency = 1
-logo.Image = "rbxassetid://..."
-logo.ScaleType = Enum.ScaleType.Fit
-
--- Text Bond
-local bondLabel = Instance.new("TextLabel", bondFrame)
-bondLabel.Size = UDim2.new(1, -30, 1, 0)
-bondLabel.Position = UDim2.new(0, 30, 0, 0)
-bondLabel.BackgroundTransparency = 1
-bondLabel.Text = "Bond (+0)"
-bondLabel.TextSize = 20
-bondLabel.Font = Enum.Font.Gotham
-bondLabel.TextColor3 = Color3.new(1, 1, 1)
-bondLabel.TextXAlignment = Enum.TextXAlignment.Left
-bondLabel.TextYAlignment = Enum.TextYAlignment.Center
-
--- Link Discord
-local discord = Instance.new("TextLabel", mainFrame)
-discord.Size = UDim2.new(1, 0, 0, 30)
-discord.Position = UDim2.new(0.5, 0, 0, 265)
-discord.AnchorPoint = Vector2.new(0.5, 0)
-discord.BackgroundTransparency = 1
-discord.Text = "gg/comming soon"
-discord.Font = Enum.Font.Gotham
-discord.TextSize = 18
-discord.TextColor3 = Color3.fromRGB(150, 150, 255)
-discord.TextXAlignment = Enum.TextXAlignment.Center
-
-------------------------------------------------
--- Logic Auto + Bond + Gun + Di chuyển ban đầu
-------------------------------------------------
-if not game:IsLoaded() then game.Loaded:Wait() end
-repeat task.wait() until game.Players.LocalPlayer.Character and game.Players.LocalPlayer.PlayerGui:FindFirstChild("LoadingScreenPrefab") == nil
-
-game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("EndDecision"):FireServer(false)
-
-_G.Bond = 0
-workspace.RuntimeItems.ChildAdded:Connect(function(v)
-    if v.Name:find("Bond") and v:FindFirstChild("Part") then
-        v.Destroying:Connect(function()
-            _G.Bond += 1
-        end)
-    end
-end)
-
-spawn(function()
-    while bondLabel do
-        bondLabel.Text = "Bond (+" .. tostring(_G.Bond) .. ")"
-        task.wait(0.3)
-    end
-end)
-
-local player = game.Players.LocalPlayer
-player.CameraMode = "Classic"
-player.CameraMaxZoomDistance = math.huge
-player.CameraMinZoomDistance = 20
-player.Character.HumanoidRootPart.Anchored = true
-wait(0.5)
-
-repeat task.wait()
-    player.Character.HumanoidRootPart.Anchored = true
-    player.Character.HumanoidRootPart.CFrame = CFrame.new(80, 3, -9000)
-until workspace.RuntimeItems:FindFirstChild("MaximGun")
-
-task.wait(0.3)
-for _, v in pairs(workspace.RuntimeItems:GetChildren()) do
-    if v.Name == "MaximGun" and v:FindFirstChild("VehicleSeat") then
-        v.VehicleSeat.Disabled = false
-        v.VehicleSeat:SetAttribute("Disabled", false)
-        v.VehicleSeat:Sit(player.Character:FindFirstChild("Humanoid"))
-    end
-end
-
-task.wait(0.5)
-for _, v in pairs(workspace.RuntimeItems:GetChildren()) do
-    if v.Name == "MaximGun" and v:FindFirstChild("VehicleSeat") and (player.Character.HumanoidRootPart.Position - v.VehicleSeat.Position).Magnitude < 400 then
-        player.Character.HumanoidRootPart.CFrame = v.VehicleSeat.CFrame
-    end
-end
-
-wait(1)
-player.Character.HumanoidRootPart.Anchored = false
-repeat wait() until player.Character.Humanoid.Sit == true
-wait(0.5)
-player.Character.Humanoid.Sit = false
-wait(0.5)
-
-repeat task.wait()
-    for _, v in pairs(workspace.RuntimeItems:GetChildren()) do
-        if v.Name == "MaximGun" and v:FindFirstChild("VehicleSeat") and (player.Character.HumanoidRootPart.Position - v.VehicleSeat.Position).Magnitude < 400 then
-            player.Character.HumanoidRootPart.CFrame = v.VehicleSeat.CFrame
-        end
-    end
-until player.Character.Humanoid.Sit == true
-
-wait(0.9)
-for _, v in pairs(workspace:GetChildren()) do
-    if v:IsA("Model") and v:FindFirstChild("RequiredComponents") and v.RequiredComponents:FindFirstChild("Controls") and v.RequiredComponents.Controls:FindFirstChild("ConductorSeat") then
-        local seat = v.RequiredComponents.Controls.ConductorSeat:FindFirstChild("VehicleSeat")
-        if seat then
-            local TpTrain = game:GetService("TweenService"):Create(player.Character.HumanoidRootPart, TweenInfo.new(25, Enum.EasingStyle.Quad), {CFrame = seat.CFrame * CFrame.new(0, 20, 0)})
-            TpTrain:Play()
-            local bv = Instance.new("BodyVelocity")
-            bv.Name = "VelocityHandler"
-            bv.Parent = player.Character.HumanoidRootPart
-            bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-            bv.Velocity = Vector3.new(0, 0, 0)
-            TpTrain.Completed:Wait()
-        end
-    end
-end
-
-wait(1)
-while true do
-    if player.Character.Humanoid.Sit then
-        local TpEnd = game:GetService("TweenService"):Create(player.Character.HumanoidRootPart, TweenInfo.new(17, Enum.EasingStyle.Quad), {CFrame = CFrame.new(0.5, -78, -49429)})
-        TpEnd:Play()
-        local bv = Instance.new("BodyVelocity")
-        bv.Name = "VelocityHandler"
-        bv.Parent = player.Character.HumanoidRootPart
-        bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-        bv.Velocity = Vector3.new(0, 0, 0)
-        repeat wait() until workspace.RuntimeItems:FindFirstChild("Bond")
-        TpEnd:Cancel()
-        for _, v in pairs(workspace.RuntimeItems:GetChildren()) do
-            if v.Name:find("Bond") and v:FindFirstChild("Part") then
-                repeat task.wait()
-                    if v:FindFirstChild("Part") then
-                        player.Character.HumanoidRootPart.CFrame = v.Part.CFrame
-                        game:GetService("ReplicatedStorage").Shared.Network.RemotePromise.Remotes.C_ActivateObject:FireServer(v)
-                    end
-                until not v:FindFirstChild("Part")
-            end
-        end
-    end
-    task.wait()
-end
-
-------------------------------------------------
--- PHẦN THÊM: Teleport Zone + Tạo Party
-------------------------------------------------
--- Lấy player an toàn
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
--- Đợi đảm bảo Character và HRP tồn tại
-local function getCharacter()
-    repeat task.wait() until player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    return player.Character.HumanoidRootPart
+local function getHRP()
+    local char = player.Character or player.CharacterAdded:Wait()
+    return char:WaitForChild("HumanoidRootPart")
 end
 
--- Lấy Hitbox từ zone
-local function getHitbox()
-    local zoneName = getgenv().TeleportZoneName or "PartyZone2"
-    local success, zone = pcall(function()
-        return workspace:WaitForChild("PartyZones", 10):WaitForChild(zoneName, 10):WaitForChild("Hitbox", 10)
-    end)
-    if success then return zone else return nil end
-end
+-- ĐẾM NGƯỜI TRONG 1 ZONE
+local function getPlayerCountInZone(zoneName)
+    local zone = workspace:WaitForChild("PartyZones", 10):FindFirstChild(zoneName)
+    if not zone then return math.huge end
+    local hitbox = zone:FindFirstChild("Hitbox")
+    if not hitbox then return math.huge end
 
--- Hàm tạo party
-local function createParty(mode)
-    local args = {
-        {
-            isPrivate = true,
-            maxMembers = 1,
-            trainId = "default",
-            gameMode = mode
-        }
-    }
-    game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Network")
-        :WaitForChild("RemoteEvent"):WaitForChild("CreateParty"):FireServer(unpack(args))
-end
-
--- Teleport nếu được bật trong config
-if getgenv().EnableTeleportAndParty then
-    local success, err = pcall(function()
-        local hrp = getCharacter()
-        local hitbox = getHitbox()
-        if hrp and hitbox then
-            local yOffset = getgenv().YOffset or 5
-            hrp.CFrame = CFrame.new(hitbox.Position + Vector3.new(0, yOffset, 0))
-        else
-            warn("Không tìm thấy HRP hoặc Hitbox")
+    local count = 0
+    for _, p in pairs(Players:GetPlayers()) do
+        local char = p.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp and (hrp.Position - hitbox.Position).Magnitude <= 15 then
+            count += 1
         end
-    end)
-
-    if not success then
-        warn("Lỗi teleport:", err)
     end
-
-    -- Tạo party sau vài giây nếu có config
-    task.delay(5, function()
-        if getgenv().EnableParty then
-            if getgenv().EnableParty.Normal then createParty("Normal") end
-            if getgenv().EnableParty.ScorchedEarth then createParty("Scorched Earth") end
-            if getgenv().EnableParty.Nightmare then createParty("Nightmare") end
-        end
-    end)
+    return count
 end
+
+-- TELEPORT ĐẾN ZONE
+local function teleportTo(zoneName)
+    local zone = workspace:WaitForChild("PartyZones", 10):FindFirstChild(zoneName)
+    if not zone then return end
+    local hitbox = zone:FindFirstChild("Hitbox")
+    if not hitbox then return end
+
+    local hrp = getHRP()
+    if hrp then
+        hrp.CFrame = CFrame.new(hitbox.Position + Vector3.new(0, getgenv().YOffset or 5, 0))
+        print("[✅ Teleported to]:", zoneName)
+    end
+end
+
+-- KIỂM TRA XEM CÓ ĐANG Ở TRONG ZONE NÀO ĐÓ KHÔNG
+local function isInZone(zoneName)
+    local zone = workspace:WaitForChild("PartyZones", 10):FindFirstChild(zoneName)
+    if not zone then return false end
+    local hitbox = zone:FindFirstChild("Hitbox")
+    if not hitbox then return false end
+
+    local hrp = getHRP()
+    if not hrp then return false end
+
+    return (hrp.Position - hitbox.Position).Magnitude <= 15
+end
+
+-- KIỂM TRA VÀ TELEPORT
+task.spawn(function()
+    local zoneList = {}
+
+    for zoneName, _ in pairs(getgenv().TargetPlayersPerZone) do
+        table.insert(zoneList, zoneName)
+    end
+    table.sort(zoneList, function(a, b) return a < b end) -- Sort nếu cần
+
+    while getgenv().EnableTeleport do
+        local hasTeleported = false
+
+        for _, zoneName in ipairs(zoneList) do
+            local target = getgenv().TargetPlayersPerZone[zoneName]
+            local current = getPlayerCountInZone(zoneName)
+
+            print(string.format("[%s] %d / %d", zoneName, current, target))
+
+            if current < target then
+                if not isInZone(zoneName) then
+                    teleportTo(zoneName)
+                    hasTeleported = true
+                end
+                break
+            end
+        end
+
+        if not hasTeleported then
+            print("[🕒 Waiting for empty slot...]")
+        end
+
+        task.wait(getgenv().TeleportInterval or 5)
+    end
+end)
