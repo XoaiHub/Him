@@ -1,6 +1,3 @@
--- Tải config ngoài
-loadstring(game:HttpGet("LINK_TO_YOUR_CONFIG.lua"))()
-
 if not getgenv().EnableTeleport then return end
 repeat task.wait() until game:IsLoaded()
 
