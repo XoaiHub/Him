@@ -3,15 +3,19 @@ repeat task.wait() until game:IsLoaded()
 
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
+local ZonesFolder = workspace:WaitForChild("PartyZones", 10)
+local currentZone = nil
+local partyCreated = false
 
+-- LẤY HRP
 local function getHRP()
     local char = player.Character or player.CharacterAdded:Wait()
-    return char:WaitForChild("HumanoidRootPart")
+    return char:WaitForChild("HumanoidRootPart", 5)
 end
 
--- ĐẾM NGƯỜI TRONG 1 ZONE
+-- ĐẾM NGƯỜI TRONG ZONE
 local function getPlayerCountInZone(zoneName)
-    local zone = workspace:WaitForChild("PartyZones", 10):FindFirstChild(zoneName)
+    local zone = ZonesFolder:FindFirstChild(zoneName)
     if not zone then return math.huge end
     local hitbox = zone:FindFirstChild("Hitbox")
     if not hitbox then return math.huge end
@@ -27,9 +31,9 @@ local function getPlayerCountInZone(zoneName)
     return count
 end
 
--- TELEPORT ĐẾN ZONE
+-- TELEPORT
 local function teleportTo(zoneName)
-    local zone = workspace:WaitForChild("PartyZones", 10):FindFirstChild(zoneName)
+    local zone = ZonesFolder:FindFirstChild(zoneName)
     if not zone then return end
     local hitbox = zone:FindFirstChild("Hitbox")
     if not hitbox then return end
@@ -37,52 +41,58 @@ local function teleportTo(zoneName)
     local hrp = getHRP()
     if hrp then
         hrp.CFrame = CFrame.new(hitbox.Position + Vector3.new(0, getgenv().YOffset or 5, 0))
-        print("[✅ Teleported to]:", zoneName)
+        currentZone = zoneName
+        print("[✅ Đã teleport đến]:", zoneName)
     end
 end
 
--- KIỂM TRA XEM CÓ ĐANG Ở TRONG ZONE NÀO ĐÓ KHÔNG
-local function isInZone(zoneName)
-    local zone = workspace:WaitForChild("PartyZones", 10):FindFirstChild(zoneName)
-    if not zone then return false end
-    local hitbox = zone:FindFirstChild("Hitbox")
-    if not hitbox then return false end
-
-    local hrp = getHRP()
-    if not hrp then return false end
-
-    return (hrp.Position - hitbox.Position).Magnitude <= 15
+-- CREATE PARTY
+local function createParty(mode)
+    local args = {{
+        isPrivate = true,
+        maxMembers = 1,
+        trainId = "default",
+        gameMode = mode
+    }}
+    game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Network")
+        :WaitForChild("RemoteEvent"):WaitForChild("CreateParty"):FireServer(unpack(args))
+    print("[🎉 Created Party]:", mode)
 end
 
--- KIỂM TRA VÀ TELEPORT
+-- TỰ ĐỘNG TELEPORT + PARTY
 task.spawn(function()
     local zoneList = {}
-
-    for zoneName, _ in pairs(getgenv().TargetPlayersPerZone) do
-        table.insert(zoneList, zoneName)
+    for name, _ in pairs(getgenv().TargetPlayersPerZone) do
+        table.insert(zoneList, name)
     end
-    table.sort(zoneList, function(a, b) return a < b end) -- Sort nếu cần
+    table.sort(zoneList)
 
     while getgenv().EnableTeleport do
-        local hasTeleported = false
-
+        local teleported = false
         for _, zoneName in ipairs(zoneList) do
             local target = getgenv().TargetPlayersPerZone[zoneName]
             local current = getPlayerCountInZone(zoneName)
 
-            print(string.format("[%s] %d / %d", zoneName, current, target))
+            print(string.format("🔍 [%s]: %d/%d", zoneName, current, target))
 
             if current < target then
-                if not isInZone(zoneName) then
+                if currentZone ~= zoneName then
                     teleportTo(zoneName)
-                    hasTeleported = true
+                    partyCreated = false -- Reset lại party mỗi khi đổi Zone
                 end
+                teleported = true
                 break
             end
         end
 
-        if not hasTeleported then
-            print("[🕒 Waiting for empty slot...]")
+        if currentZone and not partyCreated then
+            task.wait(2)
+            if getgenv().EnableParty then
+                if getgenv().EnableParty.Normal then createParty("Normal") end
+                if getgenv().EnableParty.ScorchedEarth then createParty("Scorched Earth") end
+                if getgenv().EnableParty.Nightmare then createParty("Nightmare") end
+            end
+            partyCreated = true
         end
 
         task.wait(getgenv().TeleportInterval or 5)
