@@ -1,443 +1,588 @@
-getgenv()._CH = {}
+-- Auto Teleport 1/2/3
+local Players=game:GetService("Players")
+local lp=Players.LocalPlayer
 
-_CH.scriptdata = {
-    loadedbuttons = false,
-    currentversion = 'v1.1.2.6'
-}
-
-if game.CoreGui:FindFirstChild('hexagon-docs') then
-	game.CoreGui:FindFirstChild('hexagon-docs'):Destroy()
-end
-local library = loadstring(game:HttpGet('https://raw.githubusercontent.com/vateq/UILIBrewrites/refs/heads/main/hexagonuilib'))();library.settings = {
-	guiname = "hexagon-docs",
-	title = 'CandyHub - Grow a Garden ['.._CH.scriptdata.currentversion..']',
-	modal = true,
-	font = Enum.Font.SourceSans,
-	textsize = 16,
-	logo = "rbxassetid://4350178803",
-	footer = ' - script version: ['.._CH.scriptdata.currentversion..']',
-	textstroke = true,
-}
-
-local Window = library:CreateWindow(
-	Vector2.new(450, 550),
-	Vector2.new((workspace.CurrentCamera.ViewportSize.X / 2) - 250, (workspace.CurrentCamera.ViewportSize.Y / 2) - 250) -- ui pointing (id what i just called it lol) just dont change it.
-)
-
-local sellcords = CFrame.new(61.5890846, 2.99999976, 0.426792741, -0.00227507902, 8.04493325e-08, -0.999997437, -3.3761197e-12, 1, 8.04495528e-08, 0.999997437, 1.86405197e-10, -0.00227507902)
-local getinv = function()
-    return game.Players.LocalPlayer.Backpack:GetChildren() 
-end
-
-local getsellables = function()
-    local sellables = {}
-    local currentitem = game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool")
-    for i, item in game.Players.LocalPlayer.Backpack:GetChildren() do
-        if string.find(item.Name, "kg") then
-            if not item:GetAttribute("Favorite") then
-                table.insert(sellables,item.Name)
-            end
-        end
+local function tpTo(cf)
+    if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
+        lp.Character:SetPrimaryPartCFrame(cf)
     end
-    if currentitem then
-        if string.find(currentitem.Name, "kg") then
-            if not currentitem:GetAttribute("Favorite") then
-                table.insert(sellables,currentitem.Name)
-            end
-        end
-    end
-    return sellables
 end
 
-local getseeds = function()
-    local seeds = {}
-    for i, item in game:GetService("Players").LocalPlayer.PlayerGui.Seed_Shop.Frame.ScrollingFrame:GetChildren() do
-        if item:FindFirstChild("Main_Frame") then
-            table.insert(seeds,item.Name)
-        end
-    end
-    return seeds
-end
-
-local getgears = function()
-    local gears = {}
-    for i, item in game:GetService("Players").LocalPlayer.PlayerGui.Gear_Shop.Frame.ScrollingFrame:GetChildren() do
-        if item:FindFirstChild("Main_Frame") then
-            table.insert(gears,item.Name)
-        end
-    end
-    return gears
-end
-
-local geteaster = function()
-    local seeds = {}
-    for i, item in game:GetService("Players").LocalPlayer.PlayerGui.Easter_Shop.Frame.ScrollingFrame:GetChildren() do
-        if item:FindFirstChild("Main_Frame") then
-            table.insert(seeds,item.Name)
-        end
-    end
-    return seeds
-end
-
-local garden = nil
-
-local getgardenaall = function()
-    local gardenx = nil
-    for i, garden in workspace.Farm:GetChildren() do
-        if garden:FindFirstChild("Important") then
-            if garden:FindFirstChild("Important"):FindFirstChild("Data") then
-                if garden:FindFirstChild("Important"):FindFirstChild("Data"):FindFirstChild("Owner") then
-                    if garden:FindFirstChild("Important"):FindFirstChild("Data"):FindFirstChild("Owner").Value == game.Players.LocalPlayer.Name then
-                        gardenx = garden
+local function checkTeleporter(obj)
+    local g=obj:FindFirstChild("BillboardHolder")
+    if g and g:FindFirstChild("BillboardGui") and g.BillboardGui:FindFirstChild("Players") then
+        local t=g.BillboardGui.Players.Text
+        local x,y=t:match("(%d+)/(%d+)")
+        x,y=tonumber(x),tonumber(y)
+        if x and y and x>=2 then
+            local enter=obj:FindFirstChildWhichIsA("BasePart")
+            if enter and lp.Character and lp.Character:FindFirstChild("Humanoid") then
+                local hrp=lp.Character:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    local dir=(enter.Position-hrp.Position).Unit
+                    lp.Character.Humanoid:MoveTo(enter.Position)
+                    if(hrp.Position-enter.Position).Magnitude>10 then
+                        tpTo(enter.CFrame+Vector3.new(0,3,0))
                     end
                 end
-            end 
-        end
-    end
-    return gardenx
-end
-
-local garden = getgardenaall()
-
-local getgarden = function()
-    return _CH.garden
-end
-
-local collect = function(part,range)
-    local proximity = part:FindFirstChildOfClass("ProximityPrompt")
-    local root = game.Players.LocalPlayer.Character.HumanoidRootPart
-    local magnitude = (part.Position - root.Position).Magnitude
-
-    if magnitude < range then
-        fireproximityprompt(proximity)
-    end
-end
-
-local collectall = function(range)
-    local farm = garden
-    local plants = farm.Important.Plants_Physical
-    local oldc = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame   
-
-    for _, plant in ipairs(plants:GetDescendants()) do
-        if plant.ClassName == "Part" and plant:FindFirstChildOfClass("ProximityPrompt") then
-            local proximity = plant:FindFirstChildOfClass("ProximityPrompt")
-            local root = game.Players.LocalPlayer.Character.HumanoidRootPart
-            local magnitude = (plant.Position - root.Position).Magnitude
-
-            if magnitude < range then
-                fireproximityprompt(proximity)
             end
         end
     end
 end
 
-local sellinv = function(atp)
-    local oldcords = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame
-    if #getsellables() >= 1 then
-        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = sellcords
-        repeat
-            task.wait()
-            if atp then game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = sellcords end 
-            game:GetService("ReplicatedStorage"):WaitForChild("GameEvents"):WaitForChild("Sell_Inventory"):FireServer() 
-        until #getsellables() == 0
-        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = oldcords
+spawn(function()
+    while task.wait(0.5) do
+        for _,obj in ipairs(workspace:GetChildren()) do
+            if obj:IsA("Model") and(obj.Name=="Teleporter1"or obj.Name=="Teleporter2"or obj.Name=="Teleporter3") then
+                checkTeleporter(obj)
+            end
+        end
     end
-end
-
---if not _CH.candyhub then
-_CH.candyhub = {
-
-    autoplant = false,
-
-    autocollect = false,
-    collectrate = 500,
-    tpcollect = false,
-    tprate = 10,
-
-    autobuy = false,
-    selectedseeds = {"Carrot"},
-
-    autosell = false,
-    sellonfruits = 50,
-    salefocus = false,
-
-    dupeamount = 100,
-    superdupe = false,
-    autoevent1 = false,
-}
-
---end
-
-local maintab = Window:CreateTab('Main')
-
-local category5525 = maintab:AddCategory("Auto Farm (NEXT UPDATE)",1,1)
-category5525:AddToggle('Auto Plant',_CH.candyhub.autoplant,'',function(v)
-    task.spawn(function()
-        
-        _CH.candyhub.autoplant = v
-
-    end)
 end)
 
-local category = maintab:AddCategory("Collector",1,1)
-category:AddToggle('Auto Collect',_CH.candyhub.autocollect,'',function(v)
+--// ===================== CONFIG =====================
+local Config = {
+    RegionFilterEnabled = false,
+    RegionList = { "singapore", "tokyo", "us-east" },
+    MaxPromptTime = 10,
+    WaitDiamondTimeout = 20,
+    UIScanInterval = 0.2,
+    RetryHttpDelay = 2,
+    HopLoopDelay = 2,
+    ChestName = "Stronghold Diamond Chest"
+}
+--// ===================== SERVICES =====================
+local Players          = game:GetService("Players")
+local LocalPlayer      = Players.LocalPlayer
+local StarterGui       = game:GetService("StarterGui")
+local TeleportService  = game:GetService("TeleportService")
+local HttpService      = game:GetService("HttpService")
+local Replicated       = game:GetService("ReplicatedStorage")
+
+-- các object game cụ thể
+local Remote = Replicated:WaitForChild("RemoteEvents"):WaitForChild("RequestTakeDiamonds")
+
+local Interface = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("Interface")
+local DiamondCount = Interface:WaitForChild("DiamondCount"):WaitForChild("Count")
+
+--// ===================== STATE =====================
+local PlaceID = game.PlaceId
+local AllIDs = {}
+local cursor = ""
+local isTeleporting = false
+local shouldHop = true
+local requestHopNow = false      -- <<<<<< THÊM CỜ YÊU CẦU HOP NGAY
+local ui = {}
+
+--// ===================== UTILS =====================
+local function notify(t)
+    pcall(function()
+        StarterGui:SetCore("SendNotification", { Title = "Notification", Text = tostring(t), Duration = 3 })
+    end)
+end
+
+local function rainbowStroke(stroke)
     task.spawn(function()
-        
-        _CH.candyhub.autocollect = v
+        while task.wait() do
+            for hue = 0, 1, 0.01 do
+                stroke.Color = Color3.fromHSV(hue, 1, 1)
+                task.wait(0.02)
+            end
+        end
+    end)
+end
 
-        while _CH.candyhub.autocollect and task.wait(_CH.candyhub.collectrate/1000) do
+local function hasValue(t, v) for _,x in ipairs(t) do if x == v then return true end end return false end
 
-            local farm = garden
-            local plants = farm.Important.Plants_Physical
-            local oldc = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame   
+--===================== CONFIG =====================
+local Config = {
+    UIScanInterval = 0.2,   -- tần suất cập nhật UI
+    DisplayMode = "auto",   -- "auto" (giữ format gốc), "numeric" (số nguyên), "compact" (rút gọn K/M/B)
+}
 
-            if _CH.candyhub.tpcollect then
-                for _, plant in ipairs(plants:GetDescendants()) do
-                    if plant.ClassName == "Part" and plant:FindFirstChildOfClass("ProximityPrompt") then
-                        oldc = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame
-                        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = plant.CFrame
-                        task.wait(_CH.candyhub.tprate/1000)
-                        collectall(17)
-                        task.wait(_CH.candyhub.tprate/1000)
-                        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = oldc
-                    end
+--===================== SERVICES =====================
+local Players        = game:GetService("Players")
+local CoreGuiService = game:GetService("CoreGui")
+local lp = Players.LocalPlayer
+
+--===================== HELPERS =====================
+local ui = {}
+local DiamondCount -- TextLabel trong PlayerGui hiển thị diamonds
+
+local function rainbowStroke(stroke)
+    task.spawn(function()
+        while stroke and stroke.Parent do
+            for hue = 0, 1, 0.01 do
+                if not (stroke and stroke.Parent) then break end
+                stroke.Color = Color3.fromHSV(hue, 1, 1)
+                task.wait(0.02)
+            end
+        end
+    end)
+end
+
+-- chuẩn hoá text về số (nếu có thể)
+local function parseDiamondTextToNumber(txt)
+    if type(txt) ~= "string" then return nil end
+    txt = txt:gsub(",", ""):gsub("%s", "")
+    -- dạng rút gọn: 1.2K / 3.4M / 5.6B
+    local v, suf = txt:match("^([%d%.]+)([KkMmBb])$")
+    if v and suf then
+        v = tonumber(v)
+        if not v then return nil end
+        if suf == "K" or suf == "k" then return math.floor(v * 1e3 + 0.5) end
+        if suf == "M" or suf == "m" then return math.floor(v * 1e6 + 0.5) end
+        if suf == "B" or suf == "b" then return math.floor(v * 1e9 + 0.5) end
+        return nil
+    end
+    -- dạng số thuần: 1234 / 12.345 (chấm thập phân) / 1 234
+    local onlyDigits = txt:gsub("%D", "")
+    if #onlyDigits > 0 then
+        return tonumber(onlyDigits)
+    end
+    return nil
+end
+
+local function formatCompact(n)
+    if type(n) ~= "number" then return "?" end
+    if n >= 1e9 then
+        return (math.floor(n/1e7 + 0.5)/100) .. "B" -- 2 chữ số thập phân
+    elseif n >= 1e6 then
+        return (math.floor(n/1e4 + 0.5)/100) .. "M"
+    elseif n >= 1e3 then
+        return (math.floor(n/10 + 0.5)/100) .. "K"
+    else
+        return tostring(n)
+    end
+end
+
+-- dò tìm nhãn diamonds an toàn
+local function findDiamondLabel()
+    local pg = lp:FindFirstChild("PlayerGui")
+    if not pg then return nil end
+    -- đường dẫn chuẩn: Interface -> DiamondCount -> Count
+    local ok, res = pcall(function()
+        local Interface = pg:FindFirstChild("Interface")
+        if not Interface then return nil end
+        local dc = Interface:FindFirstChild("DiamondCount")
+        if not dc then return nil end
+        local cnt = dc:FindFirstChild("Count")
+        if cnt and cnt:IsA("TextLabel") then return cnt end
+        return nil
+    end)
+    if ok and res then return res end
+
+    -- dự phòng: quét toàn bộ TextLabel có chữ "Diamond" trong tên cha
+    for _, d in ipairs(pg:GetDescendants()) do
+        if d:IsA("TextLabel") then
+            local parentName = d.Parent and d.Parent.Name or ""
+            local selfName = d.Name or ""
+            if parentName:lower():find("diamond") or selfName:lower():find("diamond") then
+                return d
+            end
+        end
+    end
+    return nil
+end
+
+--===================== CLEAR OLD UIs =====================
+do
+    local old1 = CoreGuiService:FindFirstChild("MochiUi")
+    if old1 then old1:Destroy() end
+    local old2 = CoreGuiService:FindFirstChild("DiamondFarmUI")
+    if old2 then old2:Destroy() end
+end
+
+--===================== UI: MOCHI HEADER (CENTER) =====================
+do
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "MochiUi"
+    gui.ResetOnSpawn = false
+    gui.DisplayOrder = 1000
+    gui.IgnoreGuiInset = true
+    gui.Parent = CoreGuiService
+
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Name = "MainHeader"
+    mainFrame.Size = UDim2.new(0, 400, 0, 180)
+    mainFrame.Position = UDim2.new(0.5, 0, 0.40, 0)
+    mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    mainFrame.BackgroundTransparency = 1
+    mainFrame.Parent = gui
+
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, 0, 0, 50)
+    title.Position = UDim2.new(0.5, 0, 0, 0)
+    title.AnchorPoint = Vector2.new(0.5, 0)
+    title.BackgroundTransparency = 1
+    title.Text = "Mochi Hub"
+    title.Font = Enum.Font.GothamBlack
+    title.TextSize = 36
+    title.TextColor3 = Color3.new(1, 1, 1)
+    title.TextStrokeTransparency = 0.6
+    title.TextXAlignment = Enum.TextXAlignment.Center
+    title.Parent = mainFrame
+
+    local author = Instance.new("TextLabel")
+    author.Size = UDim2.new(1, 0, 0, 30)
+    author.Position = UDim2.new(0.5, 0, 0, 60)
+    author.AnchorPoint = Vector2.new(0.5, 0)
+    author.BackgroundTransparency = 1
+    author.Text = "Kaitun 99 Night"
+    author.Font = Enum.Font.Gotham
+    author.TextSize = 20
+    author.TextColor3 = Color3.new(1, 1, 1)
+    author.TextXAlignment = Enum.TextXAlignment.Center
+    author.Parent = mainFrame
+
+    local discord = Instance.new("TextLabel")
+    discord.Size = UDim2.new(1, 0, 0, 30)
+    discord.Position = UDim2.new(0.5, 0, 0, 100)
+    discord.AnchorPoint = Vector2.new(0.5, 0)
+    discord.BackgroundTransparency = 1
+    discord.Text = "discord.gg/aHS5jRPDPb"
+    discord.Font = Enum.Font.Gotham
+    discord.TextSize = 18
+    discord.TextColor3 = Color3.fromRGB(150, 150, 255)
+    discord.TextXAlignment = Enum.TextXAlignment.Center
+    discord.Parent = mainFrame
+end
+
+--===================== UI: STATUS PANEL (CENTER, DRAGGABLE) =====================
+do
+    local a = Instance.new("ScreenGui")
+    a.Name = "DiamondFarmUI"
+    a.ResetOnSpawn = false
+    a.DisplayOrder = 1001
+    a.IgnoreGuiInset = true
+    a.Parent = CoreGuiService
+    ui.root = a
+
+    local frame = Instance.new("Frame")
+    frame.Name = "StatusPanel"
+    frame.Size = UDim2.new(0, 260, 0, 120)
+    frame.Position = UDim2.new(0.5, 0, 0.55, 0)
+    frame.AnchorPoint = Vector2.new(0.5, 0.5)
+    frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    frame.BorderSizePixel = 0
+    frame.Active = true
+    frame.Draggable = true
+    frame.Parent = a
+
+    local corner = Instance.new("UICorner", frame)
+    corner.CornerRadius = UDim.new(0, 10)
+
+    local stroke = Instance.new("UIStroke", frame)
+    stroke.Thickness = 1.5
+    rainbowStroke(stroke)
+
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, -20, 0, 26)
+    title.Position = UDim2.new(0, 10, 0, 8)
+    title.BackgroundTransparency = 1
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 16
+    title.TextColor3 = Color3.new(1,1,1)
+    title.Text = "Kaitun 99 Night"
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Parent = frame
+
+    local status = Instance.new("TextLabel")
+    status.Size = UDim2.new(1, -20, 0, 28)
+    status.Position = UDim2.new(0, 10, 0, 40)
+    status.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    status.BorderSizePixel = 0
+    status.Font = Enum.Font.GothamBold
+    status.TextSize = 14
+    status.TextColor3 = Color3.new(1,1,1)
+    status.Text = "Status: init..."
+    status.Parent = frame
+
+    local statusCorner = Instance.new("UICorner", status)
+    statusCorner.CornerRadius = UDim.new(0, 6)
+
+    local diamonds = Instance.new("TextLabel")
+    diamonds.Size = UDim2.new(1, -20, 0, 26)
+    diamonds.Position = UDim2.new(0, 10, 0, 76)
+    diamonds.BackgroundTransparency = 1
+    diamonds.Font = Enum.Font.Gotham
+    diamonds.TextSize = 14
+    diamonds.TextColor3 = Color3.new(1,1,1)
+    diamonds.Text = "Diamonds: ..."
+    diamonds.TextXAlignment = Enum.TextXAlignment.Left
+    diamonds.Parent = frame
+
+    ui.status = status
+    ui.diamonds = diamonds
+end
+
+--===================== STATUS HELPERS =====================
+local function setStatus(t)
+    if ui.status then
+        ui.status.Text = "Status: " .. tostring(t)
+    end
+end
+
+--===================== FIND & WATCH DIAMOND LABEL =====================
+-- tìm DiamondCount lần đầu (có retry nền)
+task.spawn(function()
+    local pg = lp:WaitForChild("PlayerGui", 10)
+    if not pg then return end
+
+    -- loop đợi tới khi tìm thấy
+    while task.wait(0.5) do
+        local cnt = findDiamondLabel()
+        if cnt then
+            DiamondCount = cnt
+            -- cập nhật ngay khi text thay đổi (nhanh & chính xác)
+            DiamondCount:GetPropertyChangedSignal("Text"):Connect(function()
+                local raw = DiamondCount.Text
+                local display = raw
+                if Config.DisplayMode == "numeric" then
+                    local num = parseDiamondTextToNumber(raw)
+                    display = num and tostring(num) or raw
+                elseif Config.DisplayMode == "compact" then
+                    local num = parseDiamondTextToNumber(raw)
+                    display = num and formatCompact(num) or raw
+                else -- "auto" giữ format gốc
+                    display = raw
                 end
+                if ui.diamonds then
+                    ui.diamonds.Text = "Diamonds: " .. display
+                end
+            end)
+            break
+        end
+    end
+end)
+
+-- vòng lặp dự phòng (trong trường hợp sự kiện Text không bắn vì UI game thay đổi)
+task.spawn(function()
+    while task.wait(Config.UIScanInterval) do
+        local raw = "?"
+        if not DiamondCount or not DiamondCount.Parent then
+            DiamondCount = findDiamondLabel()
+        end
+        if DiamondCount and DiamondCount:IsA("TextLabel") then
+            raw = DiamondCount.Text
+        end
+
+        local display = raw
+        if Config.DisplayMode == "numeric" then
+            local num = parseDiamondTextToNumber(raw)
+            display = num and tostring(num) or raw
+        elseif Config.DisplayMode == "compact" then
+            local num = parseDiamondTextToNumber(raw)
+            display = num and formatCompact(num) or raw
+        end
+
+        if ui.diamonds then
+            ui.diamonds.Text = "Diamonds: " .. display
+        end
+    end
+end)
+
+setStatus("ready")
+
+
+--// ===================== SERVER LIST & TELEPORT =====================
+local function fetchServerPage(nextCursor)
+    local url = ("https://games.roblox.com/v1/games/%s/servers/Public?sortOrder=Desc&excludeFullGames=true&limit=100%s")
+        :format(PlaceID, nextCursor ~= "" and ("&cursor="..nextCursor) or "")
+    local ok, data = pcall(function()
+        return HttpService:JSONDecode(game:HttpGet(url))
+    end)
+    if not ok then
+        task.wait(Config.RetryHttpDelay)
+        return nil
+    end
+    return data
+end
+
+local function regionMatch(serverEntry)
+    if not Config.RegionFilterEnabled then return true end
+    local raw = tostring(serverEntry.ping or serverEntry.region or ""):lower()
+    if raw == "" then return false end
+    for _, key in ipairs(Config.RegionList) do
+        if string.find(raw, tostring(key):lower(), 1, true) then
+            return true
+        end
+    end
+    return false
+end
+
+local function tryTeleportOnce()
+    local page = fetchServerPage(cursor)
+    if not page or not page.data then
+        setStatus("Wait hop server, retry...")
+        return false
+    end
+    cursor = (page.nextPageCursor and page.nextPageCursor ~= "null") and page.nextPageCursor or ""
+    for _, v in ipairs(page.data) do
+        local sid = tostring(v.id)
+        if tonumber(v.playing) and tonumber(v.maxPlayers) and tonumber(v.playing) < tonumber(v.maxPlayers) then
+            if not hasValue(AllIDs, sid) and regionMatch(v) then
+                table.insert(AllIDs, sid)
+                setStatus(("Teleport -> %s (%s/%s)"):format(sid, tostring(v.playing), tostring(v.maxPlayers)))
+                isTeleporting = true
+                pcall(function()
+                    TeleportService:TeleportToPlaceInstance(PlaceID, sid, LocalPlayer)
+                end)
+                task.delay(5, function() isTeleporting = false end) -- nếu fail
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local function TeleportLoop()
+    while shouldHop and task.wait(Config.HopLoopDelay) do
+        if isTeleporting then continue end
+
+        -- ƯU TIÊN: nếu có yêu cầu hop ngay sau khi nhặt xong
+        if requestHopNow then
+            setStatus("Hop tiếp (sau khi loot xong)...")
+            -- reset cursor để lấy page mới cho nhanh
+            cursor = ""
+            if tryTeleportOnce() then
+                requestHopNow = false
+                continue
             else
-                collectall(17)
-            end
-
-        end
-
-    end)
-end)
-
-category:AddSlider('Collect Rate', {100, 3000, _CH.candyhub.collectrate, 1, ""}, '', function(v)
-    task.spawn(function()
-        _CH.candyhub.collectrate = v
-    end)
-end, false)
-
-
-category:AddToggle('Transport Collect',_CH.candyhub.tpcollect,'',function(v)
-    task.spawn(function()
-        _CH.candyhub.tpcollect = v
-    end)
-end)
-
-category:AddSlider('Transport Rate', {1, 1000, _CH.candyhub.tprate, 1, ""}, '', function(v)
-    task.spawn(function()
-        _CH.candyhub.tprate = v
-    end)
-end, false)
-
-local category3 = maintab:AddCategory("Seed Sniper",1,1)
-
-category3:AddMultiDropdown('Seeds: ', getseeds(), {'Carrot'}, '', function(v)
-    _CH.candyhub.selectedseeds = v
-end, true)
-
-category3:AddToggle('Auto Buy Selected',_CH.candyhub.autobuy,'',function(v)
-    task.spawn(function()
-        _CH.candyhub.autobuy = v
-        while _CH.candyhub.autobuy and task.wait(1) do
-            for _, fruit in _CH.candyhub.selectedseeds do
-                local args = {[1] = fruit}
-                game:GetService("ReplicatedStorage"):WaitForChild("GameEvents"):WaitForChild("BuySeedStock"):FireServer(unpack(args))                
+                -- nếu chưa tìm được, giữ cờ để thử lại lượt sau
+                setStatus("Chưa tìm được server trống, thử lại...")
             end
         end
-    end)
-end)
 
-local category623 = maintab:AddCategory("Gear Sniper",1,1)
-
-category623:AddMultiDropdown('Gears: ', getgears(), {'BasicSprinkler'}, '', function(v)
-    _CH.candyhub.selectedgears = v
-end, true)
-
-category623:AddToggle('Auto Buy Selected',_CH.candyhub.autobuygear,'',function(v)
-    task.spawn(function()
-        _CH.candyhub.autobuygear = v
-        while _CH.candyhub.autobuygear and task.wait(1) do
-            for _, gear in _CH.candyhub.selectedgears do
-                if gear == "WateringCan" then
-                    local args = {[1] = gear, [2] = 10}
-                    game:GetService("ReplicatedStorage"):WaitForChild("GameEvents"):WaitForChild("BuySeedStock"):FireServer(unpack(args))
-                else
-                    local args = {[1] = gear, [2] = 0}
-                    game:GetService("ReplicatedStorage"):WaitForChild("GameEvents"):WaitForChild("BuySeedStock"):FireServer(unpack(args))
-                end
-            end
-        end
-    end)
-end)
-
-local category2 = maintab:AddCategory("Auto Sell",2,1)
-category2:AddToggle('Auto Sell',_CH.candyhub.autosell,'',function(v)
-    task.spawn(function()
-        _CH.candyhub.autosell = v
-        while _CH.candyhub.autosell and task.wait(1) do
-            if _CH.candyhub.sellonfruits ~= 0 then
-                if #getinv() >= _CH.candyhub.sellonfruits then
-                    sellinv(_CH.candyhub.salefocus)
-                end
-            end
-        end
-    end)
-end)
-category2:AddToggle('SaleFocus (afk farming)',_CH.candyhub.salefocus,'',function(v)
-    task.spawn(function()
-        _CH.candyhub.salefocus = v
-    end)
-end)
-category2:AddSlider('Sell All On Fruits: ', {0, 200, _CH.candyhub.sellonfruits, 1, ""}, '', function(v)
-    task.spawn(function()
-        _CH.candyhub.sellonfruits = v
-    end)
-end, false)
-
-category2:AddButton('Sell All Once', function()
-    sellinv()
-end)
-
-local misctab = Window:CreateTab('Misc')
-local category3525 = misctab:AddCategory("Event",1,1)
-category3525:AddToggle('Auto Give Gold Plants',false,'',function(v)
-    task.spawn(function()
-        _CH.candyhub.autoevent1 = v
-        if _CH.candyhub.autoevent1 then
-            for i, child in game.Players.LocalPlayer.Backpack:GetChildren() do
-                if string.find(child.Name,"Gold") then
-                    local oldtool = nil
-
-                    if game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool") then
-                        oldtool = game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool")
-                        oldtool.Parent = game.Players.LocalPlayer.Backpack
-                    end
-            
-                    child.Parent = game.Players.LocalPlayer.Character
-                    local args = {[1] = "SubmitHeldPlant"}
-                    game:GetService("ReplicatedStorage"):WaitForChild("GameEvents"):WaitForChild("EasterShopService"):FireServer(unpack(args))
-                    task.wait(0.01)
-                    if oldtool ~= nil then
-                        oldtool.Parent = game.Players.LocalPlayer.Character
-                    end
-                end
-            end
-        end
-    end)
-end)
-
-category3525:AddToggle('Auto DupeBuy Supers ($5-$35)',_CH.candyhub.superdupe,'',function(v)
-    task.spawn(function()
-        _CH.candyhub.superdupe = v
-        while _CH.candyhub.superdupe and task.wait(1) do
-            for i = 1,5 do
-                local args = {[1] = "PurchaseSeed",[2] = i}
-                game:GetService("ReplicatedStorage"):WaitForChild("GameEvents"):WaitForChild("EasterShopService"):FireServer(unpack(args))
-            end
-        end
-    end)
-end)
-
-game.Players.LocalPlayer.Backpack.ChildAdded:Connect(function(child)
-    if string.find(child.Name, "Gold") and _CH.candyhub.autoevent1 then
-
-        local oldtool = nil
-
-        if game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool") then
-            oldtool = game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool")
-            oldtool.Parent = game.Players.LocalPlayer.Backpack
-        end
-
-        child.Parent = game.Players.LocalPlayer.Character
-        local args = {[1] = "SubmitHeldPlant"}
-        game:GetService("ReplicatedStorage"):WaitForChild("GameEvents"):WaitForChild("EasterShopService"):FireServer(unpack(args))
-        task.wait(0.01)
-        if oldtool ~= nil then
-            oldtool.Parent = game.Players.LocalPlayer.Character
-        end
+        setStatus("Tìm server...")
+        tryTeleportOnce()
     end
-end)
-
-local category623 = misctab:AddCategory("Easter Sniper",1,1)
-category623:AddMultiDropdown('Easter Seeds: ', geteaster(), {'Chocolate Carrot'}, '', function(v)
-    _CH.candyhub.selectedeaster = v
-end, true)
-category623:AddToggle('Auto Buy Selected',_CH.candyhub.easterautobuy,'',function(v)
-    task.spawn(function()
-        _CH.candyhub.easterautobuy = v
-        while _CH.candyhub.easterautobuy and task.wait(1) do
-            for _, fruit in _CH.candyhub.selectedeaster do
-                local args = {[1] = fruit}
-                game:GetService("ReplicatedStorage").GameEvents.BuyEasterStock:FireServer(unpack(args))                
-            end
-        end
-    end)
-end)
-
-local category33 = misctab:AddCategory("GUI (OP NO UNLOCK)",2,1)
-
-_CH.loaded = false
-
-local enablegui = function(gui)
-    gui.Enabled = true
-    game:GetService("Lighting").Blur.Enabled = true
-    game.Players.LocalPlayer:SetAttribute("Core_FOV",65)
-    task.wait(2)
-    game.Players.LocalPlayer:SetAttribute("Core_FOV",70)
 end
 
-local disablegui = function(gui)
-    gui.Enabled = false
-    game:GetService("Lighting").Blur.Enabled = false
-    game.Players.LocalPlayer:SetAttribute("Core_FOV",70)
+task.spawn(TeleportLoop)
+
+--// ===================== CHEST / DIAMOND FLOW =====================
+local function waitCharacter()
+    repeat task.wait() until LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
 end
 
-local gear = game:GetService("Players").LocalPlayer.PlayerGui.Gear_Shop.Frame.Frame.ExitButton
-local easter = game:GetService("Players").LocalPlayer.PlayerGui.Easter_Shop.Frame.Frame.ExitButton
-local seeds = game:GetService("Players").LocalPlayer.PlayerGui.Seed_Shop.Frame.Frame.ExitButton
-local quest = game:GetService("Players").LocalPlayer.PlayerGui.DailyQuests_UI.Frame.Frame.ExitButton
+local function findChest()
+    local items = workspace:FindFirstChild("Items")
+    if not items then return nil end
+    return items:FindFirstChild(Config.ChestName)
+end
 
-category33:AddButton('Easter Seeds GUI', function()
-    if _CH.loaded then
-        if not game:GetService("Players").LocalPlayer.PlayerGui.Easter_Shop.Enabled then
-            enablegui(game:GetService("Players").LocalPlayer.PlayerGui.Easter_Shop)
-        else
-            disablegui(game:GetService("Players").LocalPlayer.PlayerGui.Easter_Shop)
+local function pressPromptWithTimeout(prompt, timeout)
+    local t0 = tick()
+    while prompt and prompt.Parent and (tick() - t0) < timeout do
+        pcall(function() fireproximityprompt(prompt) end)
+        task.wait(0.2)
+    end
+    return prompt and prompt.Parent == nil
+end
+
+local function findProximityPromptInChest(chest)
+    local main = chest and chest:FindFirstChild("Main")
+    if not main then return nil end
+    local attach = main:FindFirstChild("ProximityAttachment")
+    if not attach then return nil end
+    return attach:FindFirstChild("ProximityInteraction")
+end
+
+local function waitDiamonds(timeout)
+    local t0 = tick()
+    while (tick() - t0) < timeout do
+        local found = workspace:FindFirstChild("Diamond", true)
+        if found then return true end
+        task.wait(0.2)
+    end
+    return false
+end
+
+local function collectAllDiamonds()
+    local count = 0
+    for _, v in ipairs(workspace:GetDescendants()) do
+        if v.ClassName == "Model" and v.Name == "Diamond" then
+            pcall(function()
+                Remote:FireServer(v)
+                count += 1
+            end)
         end
     end
-end)
-category33:AddButton('Normal Seeds GUI', function()
-    if _CH.loaded then
-        if not game:GetService("Players").LocalPlayer.PlayerGui.Seed_Shop.Enabled then
-            enablegui(game:GetService("Players").LocalPlayer.PlayerGui.Seed_Shop)
-        else
-            disablegui(game:GetService("Players").LocalPlayer.PlayerGui.Seed_Shop)
+    return count
+end
+
+--// ===================== MAIN LOOP =====================
+task.spawn(function()
+    while true do
+        setStatus("Join xong, dò chest...")
+        waitCharacter()
+
+        local chest = findChest()
+        if not chest then
+            setStatus("Không thấy chest -> hop")
+            notify("Chest không có, đang hop server...")
+            task.wait(0.5)
+            -- TeleportLoop sẽ lo hop
+            task.wait(3)
+            continue
         end
+
+        -- Di chuyển đến chest
+        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local piv = chest:GetPivot()
+            LocalPlayer.Character:PivotTo(CFrame.new(piv.Position + Vector3.new(0, 3, 0)))
+        end
+
+        -- Tìm prompt & bấm
+        setStatus("Tìm prompt & bấm...")
+        local prompt = findProximityPromptInChest(chest)
+        if prompt then
+            pressPromptWithTimeout(prompt, Config.MaxPromptTime)
+        end
+
+        -- Nếu prompt vẫn còn -> stronghold đang chạy, hop tiếp
+        prompt = findProximityPromptInChest(chest)
+        if prompt and prompt.Parent then
+            setStatus("Stronghold đang chạy -> hop")
+            notify("Stronghold đang chạy, hop server khác...")
+            task.wait(0.5)
+            continue
+        end
+
+        -- Chờ diamonds spawn
+        setStatus("Chờ Diamond spawn...")
+        if not waitDiamonds(Config.WaitDiamondTimeout) then
+            setStatus("Không có Diamond -> hop")
+            notify("Không thấy Diamond, hop server...")
+            task.wait(0.5)
+            continue
+        end
+
+        -- Nhặt tất cả diamonds
+        setStatus("Nhặt Diamond...")
+        local got = collectAllDiamonds()
+        notify(("Đã nhặt %d Diamond (gọi Remote)."):format(got))
+
+        -- quét lần nữa (phòng spawn thêm)
+        task.wait(0.5)
+        got = got + collectAllDiamonds()
+
+        -- ==== THAY ĐỔI Ở ĐÂY: KHÔNG DỪNG, HOP TIẾP ====
+        setStatus("Hoàn tất. Hop tiếp server mới...")
+        notify("Đã nhặt xong. Đang hop tiếp server khác...")
+
+        -- yêu cầu TeleportLoop hop ngay
+        requestHopNow = true
+
+        -- chờ TeleportLoop kích hoạt teleport (tối đa ~5s), sau đó vòng lặp sẽ được khởi động lại ở server mới
+        for i = 1, 50 do
+            if isTeleporting then break end
+            task.wait(0.1)
+        end
+
+        -- không break: tiếp tục vòng lặp; sau teleport script sẽ load lại ở server mới
+        task.wait(1)
     end
 end)
-category33:AddButton('Gear GUI', function()
-    if _CH.loaded then
-        if not game:GetService("Players").LocalPlayer.PlayerGui.Gear_Shop.Enabled then
-            enablegui(game:GetService("Players").LocalPlayer.PlayerGui.Gear_Shop)
-        else
-            disablegui(game:GetService("Players").LocalPlayer.PlayerGui.Gear_Shop)
-        end
-    end
-end)
-category33:AddButton('Quest GUI', function()
-    if _CH.loaded then
-        if not game:GetService("Players").LocalPlayer.PlayerGui.DailyQuests_UI.Enabled then
-            enablegui(game:GetService("Players").LocalPlayer.PlayerGui.DailyQuests_UI)
-        else
-            disablegui(game:GetService("Players").LocalPlayer.PlayerGui.DailyQuests_UI)
-        end
-    end 
-end)
-
-_CH.loaded = true
-
-local misctab = Window:CreateTab('WIPE')
-local category552 = misctab:AddCategory("Plots",1,1)
-
-local category452 = misctab:AddCategory("Inventory",2,1)
