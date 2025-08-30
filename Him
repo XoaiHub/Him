@@ -1,398 +1,212 @@
--- Auto Teleport 1/2/3
-local Players=game:GetService("Players")
-local lp=Players.LocalPlayer
-
-local function tpTo(cf)
-    if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
-        lp.Character:SetPrimaryPartCFrame(cf)
-    end
-end
-
-local function checkTeleporter(obj)
-    local g=obj:FindFirstChild("BillboardHolder")
-    if g and g:FindFirstChild("BillboardGui") and g.BillboardGui:FindFirstChild("Players") then
-        local t=g.BillboardGui.Players.Text
-        local x,y=t:match("(%d+)/(%d+)")
-        x,y=tonumber(x),tonumber(y)
-        if x and y and x>=2 then
-            local enter=obj:FindFirstChildWhichIsA("BasePart")
-            if enter and lp.Character and lp.Character:FindFirstChild("Humanoid") then
-                local hrp=lp.Character:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    local dir=(enter.Position-hrp.Position).Unit
-                    lp.Character.Humanoid:MoveTo(enter.Position)
-                    if(hrp.Position-enter.Position).Magnitude>10 then
-                        tpTo(enter.CFrame+Vector3.new(0,3,0))
-                    end
-                end
-            end
-        end
-    end
-end
-
-spawn(function()
-    while task.wait(0.5) do
-        for _,obj in ipairs(workspace:GetChildren()) do
-            if obj:IsA("Model") and(obj.Name=="Teleporter1"or obj.Name=="Teleporter2"or obj.Name=="Teleporter3") then
-                checkTeleporter(obj)
-            end
-        end
-    end
-end)
-
---// ===================== CONFIG =====================
+--================= CONFIG =================
 local Config = {
-    RegionFilterEnabled = false,
-    RegionList = { "singapore", "tokyo", "us-east" },
-    MaxPromptTime = 10,
-    WaitDiamondTimeout = 20,
-    UIScanInterval = 0.2,
-    RetryHttpDelay = 2,
-    HopLoopDelay = 2,
-    ChestName = "Stronghold Diamond Chest"
+    FARM_PLACE_ID    = 126509999114328,
+    ChestName        = "Stronghold Diamond Chest",
+    ChestTimeout     = 10,
+    WaitDiamondTime  = 20,
+    UIScanInterval   = 0.2,
+    HopLoopDelay     = 2,
+    RegionFilter     = {"singapore","tokyo","us-east"},
+    RegionFilterEnabled = false
 }
---// ===================== SERVICES =====================
-local Players          = game:GetService("Players")
-local LocalPlayer      = Players.LocalPlayer
-local StarterGui       = game:GetService("StarterGui")
-local TeleportService  = game:GetService("TeleportService")
-local HttpService      = game:GetService("HttpService")
-local Replicated       = game:GetService("ReplicatedStorage")
 
--- các object game cụ thể
-local Remote = Replicated:WaitForChild("RemoteEvents"):WaitForChild("RequestTakeDiamonds")
+--================= SERVICES =================
+local Players = game:GetService("Players")
+local lp      = Players.LocalPlayer
+local RS      = game:GetService("ReplicatedStorage")
+local TS      = game:GetService("TeleportService")
+local HS      = game:GetService("HttpService")
+local SG      = game:GetService("StarterGui")
 
-local Interface = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("Interface")
+local Remote  = RS:WaitForChild("RemoteEvents"):WaitForChild("RequestTakeDiamonds")
+local Interface = lp:WaitForChild("PlayerGui"):WaitForChild("Interface")
 local DiamondCount = Interface:WaitForChild("DiamondCount"):WaitForChild("Count")
 
---// ===================== STATE =====================
+--================= STATE =================
 local PlaceID = game.PlaceId
-local AllIDs = {}
-local cursor = ""
-local isTeleporting = false
-local shouldHop = true
-local requestHopNow = false
+local AllIDs, cursor = {}, ""
+local isTeleporting, shouldHop, requestHopNow = false, true, false
 local ui = {}
 
---// ===================== UTILS =====================
+--================= UTILS =================
 local function notify(t)
-    pcall(function()
-        StarterGui:SetCore("SendNotification", { Title = "Notification", Text = tostring(t), Duration = 3 })
-    end)
+    pcall(function() SG:SetCore("SendNotification", {Title="Notification", Text=t, Duration=3}) end)
 end
 
 local function rainbowStroke(stroke)
     task.spawn(function()
         while task.wait() do
-            for hue = 0, 1, 0.01 do
-                stroke.Color = Color3.fromHSV(hue, 1, 1)
+            for hue=0,1,0.01 do
+                stroke.Color = Color3.fromHSV(hue,1,1)
                 task.wait(0.02)
             end
         end
     end)
 end
 
-local function hasValue(t, v) for _,x in ipairs(t) do if x == v then return true end end return false end
-
---// ===================== UI =====================
+--================= UI =================
 do
-    if game.CoreGui:FindFirstChild("DiamondFarmUI") then
-        game.CoreGui.DiamondFarmUI:Destroy()
-    end
-
-    local a = Instance.new("ScreenGui")
-    a.Name = "DiamondFarmUI"
-    a.ResetOnSpawn = false
-    a.Parent = game.CoreGui
+    if game.CoreGui:FindFirstChild("DiamondFarmUI") then game.CoreGui.DiamondFarmUI:Destroy() end
+    local a = Instance.new("ScreenGui", game.CoreGui)
+    a.Name, a.ResetOnSpawn = "DiamondFarmUI", false
     ui.root = a
 
     local frame = Instance.new("Frame", a)
-    frame.Size = UDim2.new(0, 220, 0, 100)
-    frame.Position = UDim2.new(0, 80, 0, 100)
-    frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    frame.BorderSizePixel = 0
-    frame.Active = true
-    frame.Draggable = true
-
-    local corner = Instance.new("UICorner", frame)
-    corner.CornerRadius = UDim.new(0, 8)
-
-    local stroke = Instance.new("UIStroke", frame)
-    stroke.Thickness = 1.5
-    rainbowStroke(stroke)
+    frame.Size, frame.Position = UDim2.new(0,220,0,100), UDim2.new(0,80,0,100)
+    frame.BackgroundColor3, frame.Active, frame.Draggable = Color3.fromRGB(35,35,35), true, true
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0,8)
+    local stroke = Instance.new("UIStroke", frame) stroke.Thickness=1.5 rainbowStroke(stroke)
 
     local title = Instance.new("TextLabel", frame)
-    title.Size = UDim2.new(1, 0, 0, 28)
-    title.BackgroundTransparency = 1
-    title.Font = Enum.Font.GothamBold
-    title.TextSize = 14
-    title.TextColor3 = Color3.new(1,1,1)
-    title.Text = "Kaitun 99 night"
+    title.Size, title.Text, title.TextColor3, title.Font, title.TextSize = UDim2.new(1,0,0,28), "Kaitun 99 Night", Color3.new(1,1,1), Enum.Font.GothamBold, 14
+    title.BackgroundTransparency=1
 
     local status = Instance.new("TextLabel", frame)
-    status.Size = UDim2.new(1, -20, 0, 30)
-    status.Position = UDim2.new(0, 10, 0, 36)
-    status.BackgroundColor3 = Color3.fromRGB(0,0,0)
-    status.BorderSizePixel = 0
-    status.Font = Enum.Font.GothamBold
-    status.TextSize = 14
-    status.TextColor3 = Color3.new(1,1,1)
-    status.Text = "Status: init..."
-
-    local statusCorner = Instance.new("UICorner", status)
-    statusCorner.CornerRadius = UDim.new(0, 6)
+    status.Size, status.Position, status.TextColor3, status.TextSize, status.Font = UDim2.new(1,-20,0,30), UDim2.new(0,10,0,36), Color3.new(1,1,1), 14, Enum.Font.GothamBold
+    status.Text, status.BackgroundColor3, status.BorderSizePixel = "Status: init...", Color3.fromRGB(0,0,0), 0
+    Instance.new("UICorner", status).CornerRadius = UDim.new(0,6)
+    ui.status = status
 
     local diamonds = Instance.new("TextLabel", frame)
-    diamonds.Size = UDim2.new(1, -20, 0, 24)
-    diamonds.Position = UDim2.new(0, 10, 0, 70)
-    diamonds.BackgroundTransparency = 1
-    diamonds.Font = Enum.Font.Gotham
-    diamonds.TextSize = 14
-    diamonds.TextColor3 = Color3.new(1,1,1)
-    diamonds.Text = "Diamonds: ..."
-
-    ui.status = status
+    diamonds.Size, diamonds.Position, diamonds.TextColor3, diamonds.TextSize, diamonds.Font = UDim2.new(1,-20,0,24), UDim2.new(0,10,0,70), Color3.new(1,1,1), 14, Enum.Font.Gotham
+    diamonds.Text, diamonds.BackgroundTransparency = "Diamonds: ...", 1
     ui.diamonds = diamonds
 
     task.spawn(function()
         while task.wait(Config.UIScanInterval) do
-            pcall(function()
-                ui.diamonds.Text = "Diamonds: " .. (DiamondCount and DiamondCount.Text or "?")
-            end)
+            pcall(function() ui.diamonds.Text="Diamonds: "..(DiamondCount and DiamondCount.Text or "?") end)
         end
     end)
 end
 
-local function setStatus(t)
-    if ui.status then ui.status.Text = "Status: " .. tostring(t) end
-end
+local function setStatus(t) if ui.status then ui.status.Text = "Status: "..t end end
 
---// ===================== SERVER LIST & TELEPORT =====================
-local function fetchServerPage(nextCursor)
-    local url = ("https://games.roblox.com/v1/games/%s/servers/Public?sortOrder=Desc&excludeFullGames=true&limit=100%s")
-        :format(PlaceID, nextCursor ~= "" and ("&cursor="..nextCursor) or "")
-    local ok, data = pcall(function()
-        return HttpService:JSONDecode(game:HttpGet(url))
-    end)
-    if not ok then
-        task.wait(Config.RetryHttpDelay)
-        return nil
+--================= TELEPORTER AUTO (lobby) =================
+local function tpTo(cf) if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then lp.Character:SetPrimaryPartCFrame(cf) end end
+local function checkTeleporter(obj)
+    local g=obj:FindFirstChild("BillboardHolder")
+    if g and g:FindFirstChild("BillboardGui") and g.BillboardGui:FindFirstChild("Players") then
+        local t=g.BillboardGui.Players.Text local x,y=t:match("(%d+)/(%d+)") x,y=tonumber(x),tonumber(y)
+        if x and y and x>=2 then
+            local enter=obj:FindFirstChildWhichIsA("BasePart")
+            if enter and lp.Character and lp.Character:FindFirstChild("Humanoid") then
+                local hrp=lp.Character:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    lp.Character.Humanoid:MoveTo(enter.Position)
+                    if(hrp.Position-enter.Position).Magnitude>10 then tpTo(enter.CFrame+Vector3.new(0,3,0)) end
+                end
+            end
+        end
     end
-    return data
 end
+task.spawn(function()
+    while task.wait(0.5) do
+        if game.PlaceId~=Config.FARM_PLACE_ID then
+            for _,obj in ipairs(workspace:GetChildren()) do
+                if obj:IsA("Model") and(obj.Name=="Teleporter1"or obj.Name=="Teleporter2"or obj.Name=="Teleporter3") then
+                    checkTeleporter(obj)
+                end
+            end
+        end
+    end
+end)
 
-local function regionMatch(serverEntry)
+--================= SERVER HOP =================
+local function hasValue(t,v) for _,x in ipairs(t) do if x==v then return true end end return false end
+local function fetchPage(cur)
+    local url=("https://games.roblox.com/v1/games/%s/servers/Public?sortOrder=Desc&excludeFullGames=true&limit=100%s"):format(PlaceID,cur~="" and("&cursor="..cur) or"")
+    local ok,data=pcall(function() return HS:JSONDecode(game:HttpGet(url)) end)
+    return ok and data or nil
+end
+local function regionMatch(entry)
     if not Config.RegionFilterEnabled then return true end
-    local raw = tostring(serverEntry.ping or serverEntry.region or ""):lower()
-    if raw == "" then return false end
-    for _, key in ipairs(Config.RegionList) do
-        if string.find(raw, tostring(key):lower(), 1, true) then
-            return true
-        end
-    end
+    local raw=tostring(entry.ping or entry.region or ""):lower()
+    for _,key in ipairs(Config.RegionFilter) do if raw:find(key:lower()) then return true end end
     return false
 end
-
-local function tryTeleportOnce()
-    local page = fetchServerPage(cursor)
-    if not page or not page.data then
-        setStatus("Wait hop server, retry...")
-        return false
-    end
-    cursor = (page.nextPageCursor and page.nextPageCursor ~= "null") and page.nextPageCursor or ""
-    for _, v in ipairs(page.data) do
-        local sid = tostring(v.id)
-        if tonumber(v.playing) and tonumber(v.maxPlayers) and tonumber(v.playing) < tonumber(v.maxPlayers) then
-            if not hasValue(AllIDs, sid) and regionMatch(v) then
-                table.insert(AllIDs, sid)
-                setStatus(("Teleport -> %s (%s/%s)"):format(sid, tostring(v.playing), tostring(v.maxPlayers)))
-                isTeleporting = true
-                pcall(function()
-                    TeleportService:TeleportToPlaceInstance(PlaceID, sid, LocalPlayer)
-                end)
-                task.delay(5, function() isTeleporting = false end)
+local function tryTeleport()
+    local page=fetchPage(cursor) if not page or not page.data then return false end
+    cursor=page.nextPageCursor or ""
+    for _,v in ipairs(page.data) do
+        if tonumber(v.playing)<tonumber(v.maxPlayers) then
+            local sid=tostring(v.id)
+            if not hasValue(AllIDs,sid) and regionMatch(v) then
+                table.insert(AllIDs,sid)
+                setStatus(("Teleport -> %s (%s/%s)"):format(sid,v.playing,v.maxPlayers))
+                isTeleporting=true
+                pcall(function() TS:TeleportToPlaceInstance(PlaceID,sid,lp) end)
+                task.delay(5,function() isTeleporting=false end)
                 return true
             end
         end
     end
     return false
 end
-
-local function TeleportLoop()
+task.spawn(function()
     while shouldHop and task.wait(Config.HopLoopDelay) do
         if isTeleporting then continue end
         if requestHopNow then
-            setStatus("Hop tiếp (sau khi loot xong)...")
-            cursor = ""
-            if tryTeleportOnce() then
-                requestHopNow = false
-                continue
-            else
-                setStatus("Chưa tìm được server trống, thử lại...")
-            end
+            cursor="" if tryTeleport() then requestHopNow=false continue end
         end
-        setStatus("Tìm server...")
-        tryTeleportOnce()
-    end
-end
-
-task.spawn(TeleportLoop)
-
---// ===================== CHEST / DIAMOND FLOW =====================
-local function waitCharacter()
-    repeat task.wait() until LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-end
-
-local function findChest()
-    local items = workspace:FindFirstChild("Items")
-    if not items then return nil end
-    return items:FindFirstChild(Config.ChestName)
-end
-
-local function pressPromptWithTimeout(prompt, timeout)
-    local t0 = tick()
-    while prompt and prompt.Parent and (tick() - t0) < timeout do
-        pcall(function() fireproximityprompt(prompt) end)
-        task.wait(0.2)
-    end
-    return prompt and prompt.Parent == nil
-end
-
-local function findProximityPromptInChest(chest)
-    local main = chest and chest:FindFirstChild("Main")
-    if not main then return nil end
-    local attach = main:FindFirstChild("ProximityAttachment")
-    if not attach then return nil end
-    return attach:FindFirstChild("ProximityInteraction")
-end
-
-local function waitDiamonds(timeout)
-    local t0 = tick()
-    while (tick() - t0) < timeout do
-        local found = workspace:FindFirstChild("Diamond", true)
-        if found then return true end
-        task.wait(0.2)
-    end
-    return false
-end
-
-local function collectAllDiamonds()
-    local count = 0
-    for _, v in ipairs(workspace:GetDescendants()) do
-        if v.ClassName == "Model" and v.Name == "Diamond" then
-            pcall(function()
-                Remote:FireServer(v)
-                count += 1
-            end)
-        end
-    end
-    return count
-end
-
---// ===================== MAIN LOOP =====================
-task.spawn(function()
-    while true do
-        setStatus("Join xong, dò chest...")
-        waitCharacter()
-
-        local chest = findChest()
-        if not chest then
-            setStatus("Không thấy chest -> hop")
-            notify("Chest không có, đang hop server...")
-            task.wait(0.5)
-            task.wait(3)
-            continue
-        end
-
-        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            local piv = chest:GetPivot()
-            LocalPlayer.Character:PivotTo(CFrame.new(piv.Position + Vector3.new(0, 3, 0)))
-        end
-
-        setStatus("Tìm prompt & bấm...")
-        local prompt = findProximityPromptInChest(chest)
-        if prompt then
-            pressPromptWithTimeout(prompt, Config.MaxPromptTime)
-        end
-
-        prompt = findProximityPromptInChest(chest)
-        if prompt and prompt.Parent then
-            setStatus("Stronghold đang chạy -> hop")
-            notify("Stronghold đang chạy, hop server khác...")
-            task.wait(0.5)
-            continue
-        end
-
-        setStatus("Chờ Diamond spawn...")
-        if not waitDiamonds(Config.WaitDiamondTimeout) then
-            setStatus("Không có Diamond -> hop")
-            notify("Không thấy Diamond, hop server...")
-            task.wait(0.5)
-            continue
-        end
-
-        setStatus("Nhặt Diamond...")
-        local got = collectAllDiamonds()
-        notify(("Đã nhặt %d Diamond (gọi Remote)."):format(got))
-
-        task.wait(0.5)
-        got = got + collectAllDiamonds()
-
-        setStatus("Hoàn tất. Hop tiếp server mới...")
-        notify("Đã nhặt xong. Đang hop tiếp server khác...")
-
-        requestHopNow = true
-
-        for i = 1, 50 do
-            if isTeleporting then break end
-            task.wait(0.1)
-        end
-        task.wait(1)
+        tryTeleport()
     end
 end)
 
--- =================================================================
--- ============== ADD: DIAMOND COLLECTOR (tách riêng) ==============
---  - Chỉ chạy ở place 126509999114328
---  - Dò Model tên "Diamond", TP tới & FireServer
---  - Quét 0.1s, in log "collect kc"
---  - Không đụng gì tới chest/hop/UI
--- =================================================================
-local DIAM_CONST = {
-    FARM_PLACE_ID      = 126509999114328,
-    SCAN_INTERVAL_DIAM = 0.1,
-}
-
-local function _dc_tpTo(cf)
-    local char = LocalPlayer.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    if hrp and char.SetPrimaryPartCFrame then
-        char:SetPrimaryPartCFrame(cf)
-    elseif hrp then
-        char:PivotTo(cf)
+--================= CHEST/DIAMOND =================
+local function waitCharacter() repeat task.wait() until lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") end
+local function findChest()
+    local items=workspace:FindFirstChild("Items") if not items then return nil end
+    return items:FindFirstChild(Config.ChestName)
+end
+local function pressPrompt(prompt,tout)
+    local t0=tick()
+    while prompt and prompt.Parent and tick()-t0<tout do pcall(function() fireproximityprompt(prompt) end) task.wait(0.3) end
+    return prompt and not prompt.Parent
+end
+local function getPrompt(chest)
+    local main=chest:FindFirstChild("Main") if not main then return nil end
+    local att=main:FindFirstChild("ProximityAttachment") if not att then return nil end
+    return att:FindFirstChildWhichIsA("ProximityPrompt",true)
+end
+local function waitDiamonds(tout)
+    local t0=tick()
+    while tick()-t0<tout do if workspace:FindFirstChild("Diamond",true) then return true end task.wait(0.2) end
+    return false
+end
+local function collectDiamonds()
+    local c=0
+    for _,v in ipairs(workspace:GetDescendants()) do
+        if v:IsA("Model") and v.Name=="Diamond" then pcall(function() Remote:FireServer(v) c+=1 end) end
     end
+    return c
 end
 
-local function _dc_collectOnce()
-    if game.PlaceId ~= DIAM_CONST.FARM_PLACE_ID then return end
-    for _, d in ipairs(workspace:GetDescendants()) do
-        if d:IsA("Model") and d.Name == "Diamond" then
-            local ok, pivot = pcall(function() return d:GetPivot() end)
-            if ok and pivot then
-                _dc_tpTo(CFrame.new(pivot.Position))
-            end
-            pcall(function()
-                (Remote or Replicated.RemoteEvents.RequestTakeDiamonds):FireServer(d)
-            end)
-            warn("collect kc")
-        end
-    end
-end
-
+--================= MAIN LOOP =================
 task.spawn(function()
-    while task.wait(DIAM_CONST.SCAN_INTERVAL_DIAM) do
-        _dc_collectOnce()
+    while true do
+        if game.PlaceId~=Config.FARM_PLACE_ID then task.wait(2) continue end
+        setStatus("Tìm chest...")
+        waitCharacter()
+        local chest=findChest()
+        if not chest then setStatus("Không có chest -> hop") requestHopNow=true task.wait(2) continue end
+
+        local hrp=lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then lp.Character:PivotTo(CFrame.new(chest:GetPivot().Position+Vector3.new(0,3,0))) end
+
+        setStatus("Bấm prompt...")
+        local prompt=getPrompt(chest) if prompt then pressPrompt(prompt,Config.ChestTimeout) end
+
+        if prompt and prompt.Parent then setStatus("Stronghold đang chạy -> hop") requestHopNow=true task.wait(2) continue end
+
+        setStatus("Chờ diamond...")
+        if not waitDiamonds(Config.WaitDiamondTime) then setStatus("Không spawn diamond -> hop") requestHopNow=true task.wait(2) continue end
+
+        setStatus("Nhặt diamond...")
+        local got=collectDiamonds() task.wait(0.5) got+=collectDiamonds()
+        notify(("Đã nhặt %d diamond."):format(got))
+
+        setStatus("Xong, hop server...")
+        requestHopNow=true
+        for i=1,50 do if isTeleporting then break end task.wait(0.1) end
     end
 end)
